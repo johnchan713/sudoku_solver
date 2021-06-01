@@ -133,17 +133,19 @@ void SudokuPlate::parsePlate(std::string fileName)
         if (tempString[s] == '\n' || tempString[s] == '\r' || tempString[s] == '|')
         {
             s++;
-	    if (i == 8 && j == 8) break;
+	    	if (i == 8 && j == 8) break;
             continue;
         }
         else if (tempString[s] == empty_symbol)
         {
             plate[i][j] = 0;
+	    	if (i == 8 && j == 8) break;
             nextPlateIndex(i, j);
         }
         else
         {
             plate[i][j] = tempString[s] - 48;   //convert from ASCII
+	    	if (i == 8 && j == 8) break;
             nextPlateIndex(i, j);
         }
         s++;
