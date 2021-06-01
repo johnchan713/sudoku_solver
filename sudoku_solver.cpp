@@ -6,8 +6,9 @@ int main()
     SudokuPlate su;
     su.parsePlate("sudoku_input.txt");
     su.printPlate();
-
-    //std::cout << "hello world" << std::endl;
+    std::cout << "\n======SOLVED PUZZLE======\n" << std::endl;
+    su.solvePlate();
+    su.printPlate();
 
     return 0;
 }
