@@ -1,0 +1,5 @@
+# Compiled binary
+sudoku_solver
+
+# Test files
+sudoku_test_hard.txt

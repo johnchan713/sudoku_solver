@@ -34,7 +34,9 @@ class SudokuPlate
     }
     void solvePlate();
     bool dfSearch(int idx);
+    bool dfSearchOptimized();
     bool check(int x, int i, int j);
+    int countPossibilities(int i, int j);
     void printSet(std::unordered_set < int >const &s);
 
 };
@@ -55,7 +57,8 @@ void SudokuPlate::solvePlate()
                 c[j].insert(k);
                 box[i / 3][j / 3].insert(k);
             }
-    dfSearch(0);
+    // Use optimized solver with most-constrained-variable heuristic
+    dfSearchOptimized();
 };
 
 bool SudokuPlate::dfSearch(int idx)
@@ -91,11 +94,84 @@ bool SudokuPlate::check(int x, int i, int j)
     return ((r[i].count(x) == 0) && (c[j].count(x) == 0) && (box[i / 3][j / 3].count(x) == 0));
 };
 
+// Count how many valid values can be placed at position (i,j)
+int SudokuPlate::countPossibilities(int i, int j)
+{
+    if (plate[i][j] != 0)
+        return 0; // Already filled
+
+    int count = 0;
+    for (int k = 1; k <= 9; k++)
+    {
+        if (check(k, i, j))
+            count++;
+    }
+    return count;
+};
+
+// Optimized solver using most-constrained-variable heuristic
+bool SudokuPlate::dfSearchOptimized()
+{
+    // Find the empty cell with fewest possibilities (most constrained)
+    int minPossibilities = 10;
+    int bestI = -1, bestJ = -1;
+
+    for (int i = 0; i < 9; i++)
+    {
+        for (int j = 0; j < 9; j++)
+        {
+            if (plate[i][j] == 0)
+            {
+                int possibilities = countPossibilities(i, j);
+
+                // If no valid values, this path is invalid
+                if (possibilities == 0)
+                    return false;
+
+                // Choose cell with fewest possibilities
+                if (possibilities < minPossibilities)
+                {
+                    minPossibilities = possibilities;
+                    bestI = i;
+                    bestJ = j;
+                }
+            }
+        }
+    }
+
+    // If no empty cell found, puzzle is solved
+    if (bestI == -1)
+        return true;
+
+    // Try each valid value for the most constrained cell
+    for (int k = 1; k <= 9; k++)
+    {
+        if (check(k, bestI, bestJ))
+        {
+            plate[bestI][bestJ] = k;
+            r[bestI].insert(k);
+            c[bestJ].insert(k);
+            box[bestI / 3][bestJ / 3].insert(k);
+
+            if (dfSearchOptimized())
+                return true;
+
+            // Backtrack
+            plate[bestI][bestJ] = 0;
+            r[bestI].erase(k);
+            c[bestJ].erase(k);
+            box[bestI / 3][bestJ / 3].erase(k);
+        }
+    }
+
+    return false;
+};
+
 void SudokuPlate::nextPlateIndex(int &i, int &j)
 {
-    if (i < 9 && j < 8)
+    if (j < 8)
         j++;
-    else if (i < 8 && j == 8)
+    else if (i < 8)
     {
         j = 0;
         i++;
@@ -123,34 +199,60 @@ void SudokuPlate::parsePlate(std::string fileName)
     tempString = "";
 
     std::ifstream ifs(fileName);
+    if (!ifs.is_open())
+    {
+        std::cerr << "Error: Cannot open file " << fileName << std::endl;
+        return;
+    }
+
     tempString.assign((std::istreambuf_iterator < char >(ifs)),
                       (std::istreambuf_iterator < char >()));
+
     //Inject array, traverse plate
     int i = 0, j = 0;
     int s = 0;
-    while ( (i < 8 || j < 8) || (i == 8 && j == 8) )
+    int cellCount = 0;
+
+    while (s < tempString.length() && cellCount < 81)
     {
-        if (tempString[s] == '\n' || tempString[s] == '\r' || tempString[s] == '|')
+        char ch = tempString[s];
+
+        // Skip whitespace, newlines, and separators
+        if (ch == '\n' || ch == '\r' || ch == '|' || ch == ' ')
         {
             s++;
-	    	if (i == 8 && j == 8) break;
             continue;
         }
-        else if (tempString[s] == empty_symbol)
+
+        // Process empty cells
+        if (ch == empty_symbol)
         {
             plate[i][j] = 0;
-	    	if (i == 8 && j == 8) break;
+            cellCount++;
             nextPlateIndex(i, j);
         }
-        else
+        // Process digit cells
+        else if (ch >= '1' && ch <= '9')
         {
-            plate[i][j] = tempString[s] - 48;   //convert from ASCII
-	    	if (i == 8 && j == 8) break;
+            plate[i][j] = ch - '0';   //convert from ASCII
+            cellCount++;
             nextPlateIndex(i, j);
         }
+        else if (ch >= '0' && ch <= '9')
+        {
+            // Treat '0' as empty cell
+            plate[i][j] = 0;
+            cellCount++;
+            nextPlateIndex(i, j);
+        }
+
         s++;
     }
 
+    if (cellCount != 81)
+    {
+        std::cerr << "Warning: Expected 81 cells, but parsed " << cellCount << " cells" << std::endl;
+    }
 };
 
 #endif
